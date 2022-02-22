@@ -19,6 +19,9 @@ class Slicer:
     def __getitem__(self, idx):
         return self.xs.slice(self.dim, idx)
 
+    def split_at(self, idx):
+        return self.xs.split_at(self.dim, idx)
+
 
 Dims = Dict[str, int]
 
@@ -236,6 +239,9 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
             return self.new(values)
 
         return self.without_dims(values, [axis])
+
+    def split_at(self, axis, idx):
+        return self.slice(axis, slice(None, idx)),self.slice(axis, slice(idx, None))
 
     def select(self, query):
         pass
