@@ -6,7 +6,7 @@ from .tensor import Tensor, unify, Ax
 class TensorFrame:
     def __init__(self, tensors, index=None, dims=None):
         self.tensors = tensors
-        self.index = index
+        self.index = index or {}
         self.dims = dims
 
         self._verify()
@@ -23,6 +23,10 @@ class TensorFrame:
             assert len(lengths) == 1
             length = lengths.pop()
             assert length is not None
+
+            idx = self.index.get(dim)
+            if idx is not None:
+                assert len(idx) == length
 
             self.shape[dim] = length
 
@@ -44,14 +48,18 @@ class TensorFrame:
         else:
             dims = [dim for dim in self.dims if dim != axis]
 
+        index = dict(self.index)
+
+        if axis in index:
+            index[axis] = index[axis][arg]
+
         return TensorFrame(
             tensors,
-            index=self.index,
+            index=index,
             dims=dims,
         )
 
     def split_at(self, axis, idx):
-
         lefts = {}
         rights = {}
 
@@ -60,10 +68,15 @@ class TensorFrame:
             lefts[name] = left
             rights[name] = right
 
-        if self.index is not None:
-            pass
+        left_index = dict(self.index)
+        right_index = dict(self.index)
+        if axis in self.index:
+            left_index[axis] = left_index[axis][:idx]
+            right_index[axis] = right_index[axis][idx:]
 
-        return TensorFrame(lefts, dims=self.dims), TensorFrame(rights, dims=self.dims)
+        return TensorFrame(lefts, left_index, dims=self.dims), TensorFrame(
+            rights, right_index, dims=self.dims
+        )
 
     def matches_shape(self, frame):
         for name, length in self.shape.items():
