@@ -1,3 +1,4 @@
-__all__ = ["Tensor"]
+__all__ = ["Tensor", "TensorFrame"]
 
 from .tensor import Tensor
+from .frame import TensorFrame
