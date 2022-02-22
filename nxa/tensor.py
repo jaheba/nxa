@@ -241,6 +241,11 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
         pass
 
 
+def unify(tensors):
+    ref = max(tensors, key=lambda tensor: len(tensor.dims))
+    return [ref.promote(tensor) for tensor in tensors]
+
+
 def unwrap_two(a, b):
     if len(a.shape) > len(b.shape):
         big = a
