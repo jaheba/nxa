@@ -135,7 +135,7 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
             if isinstance(other, (Number, Tensor)):
                 xs.append(other)
             else:
-                return NotImplementedError()
+                raise NotImplementedError()
 
         if len(xs) == 2:
             if all(isinstance(x, Tensor) for x in xs):
@@ -151,8 +151,13 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
 
     def __array_function__(self, func, types, args, kwargs):
         # assert args[0] is self
+
         if func is np.mean:
             return self.mean(*args[1:], **kwargs)
+        elif func is np.sum:
+            return self.sum(*args[1:], **kwargs)
+        elif func is np.median:
+            return self.median(*args[1:], **kwargs)
         elif func is np.stack:
             return self._stack(*args, **kwargs)
 
@@ -161,15 +166,24 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
 
         raise NotImplementedError(func)
 
-    def mean(self, axis=None, dtype=None):
+    def _apply_reduce(self, fn, axis, **kwargs):
         if axis is not None:
             idx_axis = self.dims[axis]
         else:
             idx_axis = None
 
-        result = np.mean(self.unwrap(), axis=idx_axis, dtype=dtype)
+        result = fn(self.unwrap(), axis=idx_axis, **kwargs)
 
         return self.without_dims(result, [axis])
+
+    def mean(self, axis=None, dtype=None):
+        return self._apply_reduce(np.mean, axis, dtype=dtype)
+
+    def sum(self, axis=None, dtype=None):
+        return self._apply_reduce(np.sum, axis, dtype=dtype)
+
+    def median(self, axis=None):
+        return self._apply_reduce(np.median, axis)
 
     def _stack(self, arrays, axis):
         assert axis not in self.dims
@@ -201,6 +215,7 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
 
         #     kwargs["axis"] = self.dims[axis]
         #     return self.without_dims(axis)(ufunc.reduce(self.values, **kwargs))
+
 
         raise NotImplementedError()
 

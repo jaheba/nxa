@@ -36,6 +36,9 @@ class TensorFrame:
         shape = ", ".join(f"{dim}={n}" for dim, n in self.shape.items())
         return f"TensorFrame<{shape}>"
 
+    def __getitem__(self, name):
+        return self.tensors[name]
+
     def slice(self, axis, arg):
         assert axis in self.dims
 
@@ -112,3 +115,21 @@ class TensorFrame:
 
         self.add(**{target: result})
         return self
+
+    def _map_fn(self, fn, *args, **kwargs):
+        return {
+            name: fn(tensor, *args, **kwargs) for name, tensor in self.tensors.items()
+        }
+
+    def sum(self, axis):
+        assert axis in self.shape
+
+        index = dict(self.index)
+        index.pop(axis, None)
+
+        return TensorFrame(
+            self._map_fn(np.sum, axis=axis),
+            index,
+            dims=[dim for dim in self.dims if dim != axis],
+            props=self.props,
+        )
