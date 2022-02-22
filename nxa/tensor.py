@@ -62,28 +62,33 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
 
     @classmethod
     def without_dims(cls, value, dimensions):
-        remaining = cls.dims.keys() - set(dimensions)
+        remaining = [dim for dim in cls.dims if dim not in dimensions]
+        # remaining = cls.dims.keys() - set(dimensions)
         if remaining:
             return Tensor[tuple(remaining)](value)
         return value
 
     def with_dimensions(self, dimensions):
-        other_unique_dims = [dim for dim in dimensions if dim not in self.dims]
-        my_unique_dims = [dim for dim in self.dims if dim not in dimensions]
+        to_expand = [dim for dim in dimensions if dim not in self.dims]
+        expanded = np.expand_dims(self.values, tuple(np.arange(len(to_expand))))
 
-        order = []
-        for dim in dimensions:
-            try:
-                order.append(other_unique_dims.index(dim))
-            except ValueError:
-                order.append(len(other_unique_dims) + list(self.dims).index(dim))
+        return Tensor[tuple(to_expand + list(self.dims))](expanded)
 
-        order.extend(np.arange(len(order), len(order) + len(my_unique_dims)))
-        expanded = np.expand_dims(self.values, tuple(np.arange(len(other_unique_dims))))
+        # other_unique_dims = [dim for dim in dimensions if dim not in self.dims]
+        # my_unique_dims = [dim for dim in self.dims if dim not in dimensions]
 
-        # print(order, expanded.shape, expanded.ndim)
-        cls = Tensor[tuple(dimensions + my_unique_dims)]
-        return cls(np.transpose(expanded, order))
+        # order = []
+        # for dim in dimensions:
+        #     try:
+        #         order.append(other_unique_dims.index(dim))
+        #     except ValueError:
+        #         order.append(len(other_unique_dims) + list(self.dims).index(dim))
+
+        # order.extend(np.arange(len(order), len(order) + len(my_unique_dims)))
+        # expanded = np.expand_dims(self.values, tuple(np.arange(len(other_unique_dims))))
+
+        # cls = Tensor[tuple(dimensions + my_unique_dims)]
+        # return cls(np.transpose(expanded, order))
 
     @classmethod
     def new(cls, values):
@@ -139,8 +144,8 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
 
         if len(xs) == 2:
             if all(isinstance(x, Tensor) for x in xs):
-                left, right, dims = unwrap_two(xs[0], xs[1])
-                return Tensor[tuple(dims)](ufunc(left, right, **kwargs))
+                left, right = unify([xs[0], xs[1]])
+                return left.new((ufunc(left.values, right.unwrap(left.dims), **kwargs)))
 
             elif self_idx == 0:
                 return self.__class__(ufunc(self.unwrap(), xs[1], *kwargs))
@@ -216,7 +221,6 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
         #     kwargs["axis"] = self.dims[axis]
         #     return self.without_dims(axis)(ufunc.reduce(self.values, **kwargs))
 
-
         raise NotImplementedError()
 
     def __getitem__(self, idx):
@@ -256,7 +260,7 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
         return self.without_dims(values, [axis])
 
     def split_at(self, axis, idx):
-        return self.slice(axis, slice(None, idx)),self.slice(axis, slice(idx, None))
+        return self.slice(axis, slice(None, idx)), self.slice(axis, slice(idx, None))
 
     def select(self, query):
         pass
