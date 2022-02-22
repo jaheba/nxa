@@ -4,10 +4,12 @@ from .tensor import Tensor, unify, Ax
 
 
 class TensorFrame:
-    def __init__(self, tensors, index=None, dims=None):
+    def __init__(self, tensors, index=None, *, dims, props=None):
         self.tensors = tensors
         self.index = index or {}
         self.dims = dims
+
+        self.props = props or {}
 
         self._verify()
 
@@ -57,6 +59,7 @@ class TensorFrame:
             tensors,
             index=index,
             dims=dims,
+            props=self.props,
         )
 
     def split_at(self, axis, idx):
@@ -74,8 +77,13 @@ class TensorFrame:
             left_index[axis] = left_index[axis][:idx]
             right_index[axis] = right_index[axis][idx:]
 
-        return TensorFrame(lefts, left_index, dims=self.dims), TensorFrame(
-            rights, right_index, dims=self.dims
+        return TensorFrame(
+            lefts, left_index, dims=self.dims, props=self.props
+        ), TensorFrame(
+            rights,
+            right_index,
+            dims=self.dims,
+            props=self.props,
         )
 
     def matches_shape(self, frame):
