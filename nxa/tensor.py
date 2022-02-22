@@ -53,6 +53,11 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
         return cls._sub_types[dims]
 
     @classmethod
+    def promote(cls, tensor):
+        assert set(tensor.shape) <= set(cls.dims)
+        return tensor.with_dimensions(list(cls.dims))
+
+    @classmethod
     def without_dims(cls, value, dimensions):
         remaining = cls.dims.keys() - set(dimensions)
         if remaining:
@@ -73,7 +78,7 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
         order.extend(np.arange(len(order), len(order) + len(my_unique_dims)))
         expanded = np.expand_dims(self.values, tuple(np.arange(len(other_unique_dims))))
 
-        print(order, expanded.shape, expanded.ndim)
+        # print(order, expanded.shape, expanded.ndim)
         cls = Tensor[tuple(dimensions + my_unique_dims)]
         return cls(np.transpose(expanded, order))
 
@@ -145,6 +150,11 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
         # assert args[0] is self
         if func is np.mean:
             return self.mean(*args[1:], **kwargs)
+        elif func is np.stack:
+            return self._stack(*args, **kwargs)
+
+        elif func is np.concatenate:
+            return self._concatenate(*args, **kwargs)
 
         raise NotImplementedError(func)
 
@@ -157,6 +167,21 @@ class Tensor(np.lib.mixins.NDArrayOperatorsMixin):
         result = np.mean(self.unwrap(), axis=idx_axis, dtype=dtype)
 
         return self.without_dims(result, [axis])
+
+    def _stack(self, arrays, axis):
+        assert axis not in self.dims
+        stacked = np.stack([arr.unwrap(self.dims) for arr in arrays])
+        return Tensor[(axis,) + tuple(self.dims)](stacked)
+
+    def _concatenate(self, arrays, axis):
+        assert axis in self.dims
+
+        num_axis = list(self.dims).index(axis)
+
+        concatenated = np.concatenate(
+            [arr.unwrap(self.dims) for arr in arrays], axis=num_axis
+        )
+        return self.new(concatenated)
 
     def __array__(self):
         return self.unwrap()
